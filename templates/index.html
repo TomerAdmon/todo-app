@@ -1,6 +1,28 @@
 {% extends "layout.html" %}
 {% block body %}
 <script>
+function parseCookie() {
+    let elems = document.cookie.split(';');
+    map = {};
+    elems.forEach(element => {
+        key = element.split("=", 1)[0];
+        value = element.substr(key.length + 1);
+        if (key[0] == ' ') {
+            key = key.substr(1)
+        }
+        map[key] = value;
+    });
+    return map;
+}
+let livenessCookieName = "liveness-id";
+cookieMap = parseCookie();
+var livenessId = cookieMap[livenessCookieName];
+if (livenessId === undefined) {
+    livenessId = Math.floor(Math.random() * 1000000);
+    set_cookie_str = livenessCookieName + "=" + livenessId + ";";
+    document.cookie = set_cookie_str;
+}
+
 $(document).ready(function() {
     $('#tasks-list').on('change', 'input.task-done', function() {
         $.post('/tasks/done', {id: this.id, done: this.checked}, function(data){}, 'json');
@@ -10,6 +32,10 @@ $(document).ready(function() {
         $.post('/tasks/delete', {id: this.id}, function(data){
             $('#task-' + data.id).slideUp('medium', function() {$(this).remove()});
         }, 'json');
+    });
+
+    $('#tasks-list').on('change', 'select.task-emoji', function() {
+        $.post('/tasks/emoji', {id: this.id, emoji: this.value}, function(data){}, 'json');
     });
 
     $('form').submit(function() {
@@ -22,9 +48,16 @@ $(document).ready(function() {
                         '<button id="' +  data['id'] + '" class="task-trash btn btn-outline-light align-middle btn-sm mr-2"><svg class="trash-svg"><use xlink:href="#trash" /></svg></button>\n' +
                         '<input id="' + data['id'] + '" class="task-done align-middle" type="checkbox" />\n' +
                     '</div>\n' +
-                    '<div class="col-11">\n' +
+                    '<div class="col-9">\n' +
                         '<h6 class="my-0 text-light">' + $("<div>").text(title).html() + '</h6>\n' +
                         '<small class="text-light">' + $("<div>").text(note).html() + '</small>\n' +
+                    '</div>\n' +
+                    '<div class="col-2 text-right">\n' +
+                        '<select id="' + data['id'] + '" class="task-emoji form-control-sm bg-dark text-light">\n' +
+                            {% for emoji in ["", "😀", "😂", "😐", "😥", "😭", "🤑", "😡", "🤢"] %}
+                            '<option value="{{ emoji }}" {{ 'selected' if '' == emoji else '' }}>{{ emoji }}</option>\n' +
+                            {% endfor %}
+                        '</select>\n' +
                     '</div>\n' +
                 '</div>\n')
                 $('input[name=title]').val("")
@@ -32,6 +65,14 @@ $(document).ready(function() {
             }
         }, 'json');
     });
+
+    function updateLiveClients() {
+        $.get('/live', {id: livenessId}, function(data) {
+            $('#live_clients').html(data)
+        });
+        setTimeout(updateLiveClients, 1000)
+    }
+    updateLiveClients()
 });
 </script>
 
@@ -45,9 +86,16 @@ $(document).ready(function() {
                     <button id="{{ task.id }}" class="task-trash btn btn-outline-light align-middle btn-sm mr-2"><svg class="trash-svg"><use xlink:href="#trash" /></svg></button>
                     <input id="{{ task.id }}" class="task-done align-middle" type="checkbox" {{ 'checked' if task.done else '' }}/>
                 </div>
-                <div class="col-11">
+                <div class="col-9">
                     <h6 class="my-0 text-light">{{ task.title }}</h6>
                     <small class="text-light">{{ task.note }}</small>
+                </div>
+                <div class="col-2 text-right">
+                    <select id="{{ task.id }}" class="task-emoji form-control-sm bg-dark text-light">
+                        {% for emoji in ["", "😀", "😂", "😐", "😥", "😭", "🤑", "😡", "🤢"] %}
+                        <option value="{{ emoji }}" {{ 'selected' if task.emoji == emoji else '' }}>{{ emoji }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             {% endfor %}
@@ -66,7 +114,7 @@ $(document).ready(function() {
                         </div>
                     </div>
                     <div class="form-group row">
-                        <label for="new-task-note"  class="col-sm-2 col-form-label text-light">Note</label>
+                        <label for="new-task-note" class="col-sm-2 col-form-label text-light">Note</label>
                         <div class="col-sm-10">
                             <input type="text" name="note" class="form-control" id="new-task-note">
                         </div>

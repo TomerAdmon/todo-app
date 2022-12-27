@@ -3,6 +3,7 @@ from models.db import db
 from models.task import Task
 from log.formatter import set_formatter
 import config
+import requests
 
 app = Flask("app",
             static_url_path='',
@@ -36,6 +37,17 @@ def create():
         return str(e)
 
 
+@app.route("/tasks/emoji", methods=['POST'])
+def emoji():
+    try:
+        task = Task.query.get(request.form["id"])
+        task.emoji = request.form["emoji"]
+        db.session.commit()
+        return ""
+    except Exception as e:
+        return str(e)
+
+
 @app.route("/tasks/done", methods=['POST'])
 def done():
     try:
@@ -55,6 +67,14 @@ def delete():
         Task.query.filter_by(id=request.form["id"]).delete()
         db.session.commit()
         return jsonify({'id': request.form["id"]})
+    except Exception as e:
+        return str(e)
+
+
+@app.route("/live")
+def live():
+    try:
+        return requests.get("http://live-backend:3001/live", params={'id': request.args["id"]}).text
     except Exception as e:
         return str(e)
 
